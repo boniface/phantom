@@ -67,7 +67,8 @@ class BatchTest extends BaseTest {
 
     w successful {
       res => {
-        res._1.isEmpty shouldEqual true
+        res._1.isDefined shouldEqual true
+
         res._1.get shouldEqual row
 
         res._2.isEmpty shouldEqual true

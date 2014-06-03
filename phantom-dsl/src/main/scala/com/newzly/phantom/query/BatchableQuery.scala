@@ -19,6 +19,7 @@
 package com.newzly.phantom.query
 
 trait BatchableQuery[Q] {
+
   self: CQLQuery[Q] =>
 
   def timestamp(l: Long): Q
