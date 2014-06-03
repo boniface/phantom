@@ -24,6 +24,7 @@ class DeleteQuery[T <: CassandraTable[T, R], R](table: T, val qb: Delete)
   def where[RR](condition: T => QueryCondition): DeleteWhere[T, R] = {
     new DeleteWhere[T, R](table, qb.where(condition(table).clause))
   }
+
 }
 
 class DeleteWhere[T <: CassandraTable[T, R], R](table: T, val qb: Delete.Where)
