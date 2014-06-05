@@ -16,10 +16,11 @@
 package com.newzly.phantom.dsl.batch
 
 import scala.concurrent.blocking
+import org.joda.time.DateTime
 import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.time.SpanSugar._
 import com.newzly.phantom.Implicits._
-import com.newzly.phantom.tables.{ JodaRow, PrimitivesJoda }
+import com.newzly.phantom.tables.{ JodaRow, PrimitivesJoda, Recipe, Recipes }
 import com.newzly.util.testing.AsyncAssertionsHelper._
 import com.newzly.util.testing.cassandra.BaseTest
 
@@ -290,4 +291,120 @@ class BatchTest extends BaseTest {
       }
     }
   }
+
+  it should "prioritise batch updates in a last first order" in {
+    val row = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement()
+      .add(statement1)
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo row.int))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 10)))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 15)))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 20)))
+
+    val chain = for {
+      done <- batch.execute()
+      updated <- PrimitivesJoda.select.where(_.pkey eqs row.pkey).get()
+    } yield updated
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get.int shouldEqual (row.int + 20)
+      }
+    }
+  }
+
+  it should "prioritise batch updates in a last first order with Twitter Futures" in {
+    val row = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement()
+      .add(statement1)
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo row.int))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 10)))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 15)))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 20)))
+
+    val chain = for {
+      done <- batch.future()
+      updated <- PrimitivesJoda.select.where(_.pkey eqs row.pkey).one()
+    } yield updated
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get.int shouldEqual (row.int + 20)
+      }
+    }
+  }
+
+  it should "prioritise batch updates based on a timestamp" in {
+    val row = JodaRow.sample
+
+    val last = new DateTime()
+    val last2 = last.withDurationAdded(20, 5)
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement()
+      .add(statement1)
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 10)).timestamp(last2.getMillis))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 15)))
+
+    val chain = for {
+      done <- batch.future()
+      updated <- PrimitivesJoda.select.where(_.pkey eqs row.pkey).one()
+    } yield updated
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get.int shouldEqual (row.int + 15)
+      }
+    }
+  }
+
+  it should "prioritise batch updates based on a timestamp with Twitter futures" in {
+    val row = JodaRow.sample
+
+    val last = new DateTime()
+    val last2 = last.withDurationAdded(20, 5)
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement()
+      .add(statement1)
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo row.int))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 10)).timestamp(last2.getMillis))
+      .add(PrimitivesJoda.update.where(_.pkey eqs row.pkey).modify(_.intColumn setTo (row.int + 15)))
+
+    val chain = for {
+      done <- batch.execute()
+      updated <- PrimitivesJoda.select.where(_.pkey eqs row.pkey).get()
+    } yield updated
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get.int shouldEqual (row.int + 15)
+      }
+    }
+  }
+
 }
