@@ -42,8 +42,8 @@ sealed abstract class BatchQueryListTrait[X](protected[this] val qbList: Iterato
 
   protected[this] def create(): Batch
 
-  final def add(statement: => BatchableStatement): X = {
-    qb.add(statement.qb)
+  final def add(statements: BatchableStatement*): X = {
+    for (st <- statements) qb.add(st.qb)
     this
   }
 

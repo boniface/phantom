@@ -39,18 +39,22 @@ class UnloggedBatchTest extends BaseTest {
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
     val row3 = JodaRow.sample
     PrimitivesJoda.insertSchema()
+
     val statement1 = PrimitivesJoda.insert
       .value(_.pkey, row.pkey)
       .value(_.intColumn, row.int)
       .value(_.timestamp, row.bi)
+
     val statement2 = PrimitivesJoda.insert
       .value(_.pkey, row3.pkey)
       .value(_.intColumn, row3.int)
       .value(_.timestamp, row3.bi)
+
     val statement3 = PrimitivesJoda.update
       .where(_.pkey eqs row2.pkey)
       .modify(_.intColumn setTo row2.int)
-      .modify(_.timestamp setTo  row2.bi)
+      .and(_.timestamp setTo  row2.bi)
+
     val statement4 = PrimitivesJoda.delete
       .where(_.pkey eqs row3.pkey)
 
@@ -78,19 +82,22 @@ class UnloggedBatchTest extends BaseTest {
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
     val row3 = JodaRow.sample
-    PrimitivesJoda.insertSchema()
+
     val statement1 = PrimitivesJoda.insert
       .value(_.pkey, row.pkey)
       .value(_.intColumn, row.int)
       .value(_.timestamp, row.bi)
+
     val statement2 = PrimitivesJoda.insert
       .value(_.pkey, row3.pkey)
       .value(_.intColumn, row3.int)
       .value(_.timestamp, row3.bi)
+
     val statement3 = PrimitivesJoda.update
       .where(_.pkey eqs row2.pkey)
       .modify(_.intColumn setTo row2.int)
-      .modify(_.timestamp setTo  row2.bi)
+      .and(_.timestamp setTo  row2.bi)
+
     val statement4 = PrimitivesJoda.delete
       .where(_.pkey eqs row3.pkey)
 

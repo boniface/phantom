@@ -40,7 +40,8 @@ class BatchTruncateTest extends BaseTest {
     val statement3 = PrimitivesJoda.update
       .where(_.pkey eqs row2.pkey)
       .modify(_.intColumn setTo row2.int)
-      .modify(_.timestamp setTo  row2.bi)
+      .and(_.timestamp setTo  row2.bi)
+
     val statement4 = PrimitivesJoda.delete
       .where(_.pkey eqs row3.pkey)
 

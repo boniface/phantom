@@ -35,27 +35,47 @@ class BatchTest extends BaseTest {
     }
   }
 
-  it should "correctly execute a batch sequence" in {
+  it should "get the correct count for batch queries" in {
+
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
     val row3 = JodaRow.sample
-    PrimitivesJoda.insertSchema()
+
+    val statement3 = PrimitivesJoda.update
+      .where(_.pkey eqs row2.pkey)
+      .modify(_.intColumn setTo row2.int)
+      .and(_.timestamp setTo row2.bi)
+
+    val statement4 = PrimitivesJoda.delete
+      .where(_.pkey eqs row3.pkey)
+
+    val batch = BatchStatement().add(statement3, statement4)
+  }
+
+  it should "correctly execute a batch query" in {
+    val row = JodaRow.sample
+    val row2 = JodaRow.sample.copy(pkey = row.pkey)
+    val row3 = JodaRow.sample
+
     val statement1 = PrimitivesJoda.insert
         .value(_.pkey, row.pkey)
         .value(_.intColumn, row.int)
         .value(_.timestamp, row.bi)
+
     val statement2 = PrimitivesJoda.insert
       .value(_.pkey, row3.pkey)
       .value(_.intColumn, row3.int)
       .value(_.timestamp, row3.bi)
+
     val statement3 = PrimitivesJoda.update
       .where(_.pkey eqs row2.pkey)
       .modify(_.intColumn setTo row2.int)
-      .modify(_.timestamp setTo  row2.bi)
+      .and(_.timestamp setTo  row2.bi)
+
     val statement4 = PrimitivesJoda.delete
       .where(_.pkey eqs row3.pkey)
 
-    val batch = new BatchStatement().add(statement3).add(statement4)
+    val batch = BatchStatement().add(statement3).add(statement4)
 
     val w = for {
       s1 <- statement1.future()
@@ -75,23 +95,26 @@ class BatchTest extends BaseTest {
     }
   }
 
-  it should "correctly execute a batch sequence with Twitter Futures" in {
+  it should "correctly execute a batch query with Twitter Futures" in {
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
     val row3 = JodaRow.sample
-    PrimitivesJoda.insertSchema()
+
     val statement1 = PrimitivesJoda.insert
       .value(_.pkey, row.pkey)
       .value(_.intColumn, row.int)
       .value(_.timestamp, row.bi)
+
     val statement2 = PrimitivesJoda.insert
       .value(_.pkey, row3.pkey)
       .value(_.intColumn, row3.int)
       .value(_.timestamp, row3.bi)
+
     val statement3 = PrimitivesJoda.update
       .where(_.pkey eqs row2.pkey)
       .modify(_.intColumn setTo row2.int)
-      .modify(_.timestamp setTo  row2.bi)
+      .and(_.timestamp setTo row2.bi)
+
     val statement4 = PrimitivesJoda.delete
       .where(_.pkey eqs row3.pkey)
 

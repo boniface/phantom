@@ -75,11 +75,9 @@ class AssignmentsQuery[T <: CassandraTable[T, R], R](table: T, val qb: Update.As
     new ConditionalUpdateQuery[T, R](table, qb.onlyIf(condition(table).clause))
   }
 
-  def modify(a: T => Assignment): AssignmentsQuery[T, R] = {
+  def and(a: T => Assignment): AssignmentsQuery[T, R] = {
     new AssignmentsQuery[T, R](table, qb.and(a(table)))
   }
-
-  def and = modify _
 
   def timestamp(l: Long): AssignmentsQuery[T, R] = {
     qb.using(QueryBuilder.timestamp(l))
