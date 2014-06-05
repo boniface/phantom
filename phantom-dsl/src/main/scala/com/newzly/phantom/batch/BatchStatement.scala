@@ -15,27 +15,26 @@
  */
 package com.newzly.phantom.batch
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.{ Future => ScalaFuture }
 
-import com.datastax.driver.core.{ BatchStatement => DatastaxBatchStatement, ResultSet, Session }
-import com.newzly.phantom.CassandraResultSetOperations
-import com.newzly.phantom.query.{ BatchableQuery, ExecutableStatement }
+import com.datastax.driver.core.{ ResultSet, Session }
+import com.datastax.driver.core.querybuilder.{ Batch, QueryBuilder }
+
+import com.newzly.phantom.query.{ BatchableQuery, CQLQuery, ExecutableStatement }
 
 import com.twitter.util.{ Future => TwitterFuture }
-import com.datastax.driver.core.querybuilder.{QueryBuilder, Batch}
 
 sealed abstract class BatchableTypes {
   type BatchableStatement = BatchableQuery[_] with ExecutableStatement
 }
 
-sealed abstract class BatchQueryListTrait[X](protected[this] val qbList: Iterator[BatchableTypes#BatchableStatement] = Iterator.empty) extends CassandraResultSetOperations {
+sealed abstract class BatchQueryListTrait[X](protected[this] val qbList: Iterator[BatchableTypes#BatchableStatement] = Iterator.empty) extends CQLQuery[X] {
   self: X =>
 
 
   type BatchableStatement = BatchableTypes#BatchableStatement
 
-  private[this] val batch = create()
+  protected[phantom] val qb = create()
 
   protected[this] lazy val statements: Iterator[BatchableStatement] =  Iterator.empty
 
@@ -43,27 +42,14 @@ sealed abstract class BatchQueryListTrait[X](protected[this] val qbList: Iterato
 
   protected[this] def create(): Batch
 
-  final def apply(list: Iterator[BatchableStatement] = Iterator.empty): X = {
-    newSubclass(list)
-  }
-
-  @implicitNotFound("SELECT, CREATE and TRUNCATE queries cannot be used in a BATCH.")
   final def add(statement: => BatchableStatement): X = {
-    batch.add(statement.qb)
+    qb.add(statement.qb)
     this
   }
 
   final def timestamp(t: Long): X = {
-    batch.using(QueryBuilder.timestamp(t))
+    qb.using(QueryBuilder.timestamp(t))
     this
-  }
-
-  def future()(implicit session: Session): ScalaFuture[ResultSet] = {
-    scalaStatementToFuture(batch)
-  }
-
-  def execute()(implicit session: Session): TwitterFuture[ResultSet] = {
-    twitterStatementToFuture(batch)
   }
 }
 
@@ -77,6 +63,7 @@ sealed abstract class BatchQueryListTrait[X](protected[this] val qbList: Iterato
  * on each statement, using the "timestamp" method available on every batchable query(INSERT, UPDATE, DELETE).
  */
 sealed class BatchStatement(qbList: Iterator[BatchableTypes#BatchableStatement] = Iterator.empty) extends BatchQueryListTrait[BatchStatement](qbList) {
+
   protected[this] def create(): Batch = QueryBuilder.batch()
   protected[this] def newSubclass(sts: Iterator[BatchableStatement]): BatchStatement = new BatchStatement(sts)
 }
