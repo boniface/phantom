@@ -49,7 +49,7 @@ class BatchTest extends BaseTest {
 
   }
 
-  it should "serialize a multiple table batch query" in {
+  it should "serialize a multiple table batch query applied to multiple statements" in {
 
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
@@ -67,7 +67,145 @@ class BatchTest extends BaseTest {
     batch.queryString shouldEqual s"BEGIN BATCH UPDATE PrimitivesJoda SET intColumn=${row2.int},timestamp=${row2.bi.getMillis} WHERE pkey='${row2.pkey}';DELETE  FROM PrimitivesJoda WHERE pkey='${row3.pkey}';APPLY BATCH;"
   }
 
-  it should "correctly execute a batch query" in {
+  it should "serialize a multiple table batch query chained from adding statements" in {
+
+    val row = JodaRow.sample
+    val row2 = JodaRow.sample.copy(pkey = row.pkey)
+    val row3 = JodaRow.sample
+
+    val statement3 = PrimitivesJoda.update
+      .where(_.pkey eqs row2.pkey)
+      .modify(_.intColumn setTo row2.int)
+      .and(_.timestamp setTo row2.bi)
+
+    val statement4 = PrimitivesJoda.delete
+      .where(_.pkey eqs row3.pkey)
+
+    val batch = BatchStatement().add(statement3).add(statement4)
+    batch.queryString shouldEqual s"BEGIN BATCH UPDATE PrimitivesJoda SET intColumn=${row2.int},timestamp=${row2.bi.getMillis} WHERE pkey='${row2.pkey}';DELETE  FROM PrimitivesJoda WHERE pkey='${row3.pkey}';APPLY BATCH;"
+  }
+
+  it should "correctly execute a chain of INSERT queries" in {
+    val row = JodaRow.sample
+    val row2 = JodaRow.sample
+    val row3 = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val statement2 = PrimitivesJoda.insert
+      .value(_.pkey, row2.pkey)
+      .value(_.intColumn, row2.int)
+      .value(_.timestamp, row2.bi)
+
+    val statement3 = PrimitivesJoda.insert
+      .value(_.pkey, row3.pkey)
+      .value(_.intColumn, row3.int)
+      .value(_.timestamp, row3.bi)
+
+    val batch = BatchStatement().add(statement1).add(statement2).add(statement3)
+
+    val chain = for {
+      ex <- PrimitivesJoda.truncate.future()
+      batchDone <- batch.future()
+      count <- PrimitivesJoda.count.one()
+    } yield count
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get shouldEqual 3
+      }
+    }
+  }
+
+  it should "correctly execute a chain of INSERT queries with Twitter Futures" in {
+    val row = JodaRow.sample
+    val row2 = JodaRow.sample
+    val row3 = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val statement2 = PrimitivesJoda.insert
+      .value(_.pkey, row2.pkey)
+      .value(_.intColumn, row2.int)
+      .value(_.timestamp, row2.bi)
+
+    val statement3 = PrimitivesJoda.insert
+      .value(_.pkey, row3.pkey)
+      .value(_.intColumn, row3.int)
+      .value(_.timestamp, row3.bi)
+
+    val batch = BatchStatement().add(statement1).add(statement2).add(statement3)
+
+    val chain = for {
+      ex <- PrimitivesJoda.truncate.execute()
+      batchDone <- batch.execute()
+      count <- PrimitivesJoda.count.get()
+    } yield count
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get shouldEqual 3
+      }
+    }
+  }
+
+  it should "correctly execute a chain of INSERT queries and not perform multiple inserts" in {
+    val row = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement().add(statement1).add(statement1.ifNotExists()).add(statement1.ifNotExists())
+
+    val chain = for {
+      ex <- PrimitivesJoda.truncate.future()
+      batchDone <- batch.future()
+      count <- PrimitivesJoda.count.one()
+    } yield count
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get shouldEqual 1
+      }
+    }
+  }
+
+  it should "correctly execute a chain of INSERT queries and not perform multiple inserts with Twitter Futures" in {
+    val row = JodaRow.sample
+
+    val statement1 = PrimitivesJoda.insert
+      .value(_.pkey, row.pkey)
+      .value(_.intColumn, row.int)
+      .value(_.timestamp, row.bi)
+
+    val batch = BatchStatement().add(statement1).add(statement1.ifNotExists()).add(statement1.ifNotExists())
+
+    val chain = for {
+      ex <- PrimitivesJoda.truncate.future()
+      batchDone <- batch.future()
+      count <- PrimitivesJoda.count.one()
+    } yield count
+
+    chain.successful {
+      res => {
+        res.isDefined shouldEqual true
+        res.get shouldEqual 1
+      }
+    }
+  }
+
+  it should "correctly execute an UPDATE/DELETE pair batch query" in {
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
     val row3 = JodaRow.sample
