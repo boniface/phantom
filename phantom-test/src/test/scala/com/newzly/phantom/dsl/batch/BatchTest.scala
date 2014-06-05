@@ -36,6 +36,20 @@ class BatchTest extends BaseTest {
   }
 
   it should "get the correct count for batch queries" in {
+    val row = JodaRow.sample
+    val statement3 = PrimitivesJoda.update
+      .where(_.pkey eqs row.pkey)
+      .modify(_.intColumn setTo row.int)
+      .and(_.timestamp setTo row.bi)
+
+    val statement4 = PrimitivesJoda.delete
+      .where(_.pkey eqs row.pkey)
+
+    val batch = BatchStatement().add(statement3, statement4)
+
+  }
+
+  it should "serialize a multiple table batch query" in {
 
     val row = JodaRow.sample
     val row2 = JodaRow.sample.copy(pkey = row.pkey)
@@ -50,6 +64,7 @@ class BatchTest extends BaseTest {
       .where(_.pkey eqs row3.pkey)
 
     val batch = BatchStatement().add(statement3, statement4)
+    batch.queryString shouldEqual s"BEGIN BATCH UPDATE PrimitivesJoda SET intColumn=${row2.int},timestamp=${row2.bi.getMillis} WHERE pkey='${row2.pkey}';DELETE  FROM PrimitivesJoda WHERE pkey='${row3.pkey}';APPLY BATCH;"
   }
 
   it should "correctly execute a batch query" in {
@@ -88,8 +103,8 @@ class BatchTest extends BaseTest {
     w successful {
       res => {
         res._1.isDefined shouldEqual true
+        res._1.get shouldEqual row2
 
-        res._1.get shouldEqual row
         res._2.isEmpty shouldEqual true
       }
     }
@@ -131,8 +146,8 @@ class BatchTest extends BaseTest {
     w successful {
       res => {
         res._1.isDefined shouldEqual true
+        res._1.get shouldEqual row2
 
-        res._1.get shouldEqual row
         res._2.isEmpty shouldEqual true
       }
     }

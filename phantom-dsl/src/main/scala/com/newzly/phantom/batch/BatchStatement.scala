@@ -15,14 +15,9 @@
  */
 package com.newzly.phantom.batch
 
-import scala.concurrent.{ Future => ScalaFuture }
-
-import com.datastax.driver.core.{ ResultSet, Session }
 import com.datastax.driver.core.querybuilder.{ Batch, QueryBuilder }
-
 import com.newzly.phantom.query.{ BatchableQuery, CQLQuery, ExecutableStatement }
 
-import com.twitter.util.{ Future => TwitterFuture }
 
 sealed abstract class BatchableTypes {
   type BatchableStatement = BatchableQuery[_] with ExecutableStatement
